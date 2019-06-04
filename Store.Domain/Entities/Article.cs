@@ -4,8 +4,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Store.Domain.Entities
 {
-    public class Item : Entity
+    public class Article : Entity
     {
+
         public string Name { get; set; }
         public decimal Cost { get; set; }
         public string Description { get; set; }
@@ -16,7 +17,7 @@ namespace Store.Domain.Entities
         public bool Active { get; set; }
         public int Sort { get; set; }
 
-        public virtual List<Rate> Rated { get; set; } = new List<Rate>();
         public virtual List<Picture> Pictures { get; set; } = new List<Picture>();
+
     }
 }

@@ -12,6 +12,9 @@ namespace Store.Domain.Entities
         public Guid? GroupId { get; set; }
         [ForeignKey("GroupId")]
         public virtual Group Group { get; set; }
+        public Guid? ArticleId { get; set; }
+        [ForeignKey("ArticleId")]
+        public virtual Article Article { get; set; }
         public PictureType Type { get; set; }
         public SourceType SourceType { get; set; }
         public int Width { get; set; }

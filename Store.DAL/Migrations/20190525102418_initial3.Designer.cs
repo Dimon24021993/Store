@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Store.DAL;
 
 namespace Store.DAL.Migrations
 {
     [DbContext(typeof(DataBaseContext))]
-    partial class DataBaseContextModelSnapshot : ModelSnapshot
+    [Migration("20190525102418_initial3")]
+    partial class initial3
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -26,8 +28,7 @@ namespace Store.DAL.Migrations
 
                     b.Property<bool>("Active");
 
-                    b.Property<decimal>("Cost")
-                        .HasColumnType("decimal(12,10)");
+                    b.Property<decimal>("Cost");
 
                     b.Property<string>("Description");
 
@@ -93,17 +94,11 @@ namespace Store.DAL.Migrations
 
                     b.Property<bool>("Active");
 
-                    b.Property<string>("Description");
-
                     b.Property<int>("GroupType");
-
-                    b.Property<string>("Href");
 
                     b.Property<string>("Name");
 
                     b.Property<Guid?>("ParentId");
-
-                    b.Property<string>("ShortDescription");
 
                     b.Property<int>("Sort");
 

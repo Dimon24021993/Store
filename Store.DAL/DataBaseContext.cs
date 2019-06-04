@@ -10,6 +10,7 @@ namespace Store.DAL
 
         }
 
+        public DbSet<Article> Articles { get; set; }
         public DbSet<Criteria> Criterias { get; set; }
         public DbSet<CriteriaItem> CriteriaItems { get; set; }
         public DbSet<Group> Groups { get; set; }
@@ -29,6 +30,7 @@ namespace Store.DAL
         {
             modelBuilder.Entity<Rate>().Property(x => x.Value).HasColumnType("decimal(12,10)");
             modelBuilder.Entity<Item>().Property(x => x.Cost).HasColumnType("decimal(12,10)");
+            modelBuilder.Entity<Article>().Property(x => x.Cost).HasColumnType("decimal(12,10)");
             //modelBuilder.Entity<Role>().HasKey(x => new { x.UserId, x.RoleName });
         }
     }
