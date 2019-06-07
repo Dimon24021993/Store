@@ -1,5 +1,6 @@
 ﻿using Store.DAL;
 using Store.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -45,7 +46,7 @@ namespace Store.Parser.DataBase
             {
                 var pictureBase = Context.Pictures
                                  .FirstOrDefault(x =>
-                                                     x.GroupId == picture.GroupId
+                                                     (x.GroupId == picture.GroupId || x.ItemId == picture.ItemId || x.ArticleId == picture.ArticleId)
                                                   && x.Type == picture.Type
                                                   && x.Name == picture.Name
                                                   && x.Href == picture.Href);
@@ -70,8 +71,8 @@ namespace Store.Parser.DataBase
             {
                 foreach (var criteria in criterias2Base)
                 {
-                    var criteriaBase =
-                        Context.Criterias.FirstOrDefault(x => x.GroupId == criteria.GroupId && x.Name == criteria.Name);
+                    var criteriaBase = Context.Criterias.FirstOrDefault(x => x.GroupId == criteria.GroupId
+                                                                          && x.Name == criteria.Name);
                     if (criteriaBase == null)
                     {
                         Context.Criterias.Add(criteria);
@@ -94,9 +95,9 @@ namespace Store.Parser.DataBase
             {
                 foreach (var criteria in criterias2Base)
                 {
-                    var criteriaBase =
-                        Context.CriteriaItems.FirstOrDefault(x => x.CriteriaId == criteria.CriteriaId &&
-                                                                  x.Value == criteria.Value);
+                    var criteriaBase = Context.CriteriaItems.FirstOrDefault(x => x.CriteriaId == criteria.CriteriaId
+                                                                              && x.Value == criteria.Value
+                                                                              && x.ItemId == criteria.ItemId);
                     if (criteriaBase == null)
                     {
                         Context.CriteriaItems.Add(criteria);
@@ -107,6 +108,71 @@ namespace Store.Parser.DataBase
                         criteria.Id = criteriaBase.Id;
                     }
                 }
+            }
+        }
+
+        public static void AddItem(ref Item item)
+        {
+            if (item == null) return;
+            var itemNo = item.ItemNo;
+            lock (Context)
+            {
+                var itemBase = Context.Items.FirstOrDefault(x => x.ItemNo == itemNo
+                                                                 //&& x.GroupId == groupId
+                                                                 );
+                if (itemBase == null)
+                {
+                    Context.Items.Add(item);
+                    Context.SaveChanges();
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(itemBase.Description) && !string.IsNullOrWhiteSpace(item.Description))
+                        itemBase.Description = item.Description;
+                    if (string.IsNullOrWhiteSpace(itemBase.ShortDescription) && !string.IsNullOrWhiteSpace(item.ShortDescription))
+                        itemBase.ShortDescription = item.ShortDescription;
+                    if (itemBase.Cost == 0 && item.Cost > 0)
+                        itemBase.Cost = item.Cost;
+
+                    item = itemBase;
+                    Context.Items.Update(itemBase);
+                    Context.SaveChanges();
+                }
+            }
+        }
+
+        public static void AddItemGroup(ref ItemGroup item)
+        {
+            if (item == null) return;
+            var itemloc = item;
+            lock (Context)
+            {
+                var itemBase = Context.ItemGroups.FirstOrDefault(x => x.ItemId == itemloc.ItemId
+                                                                      && x.GroupId == itemloc.GroupId);
+                if (itemBase != null) return;
+                Context.ItemGroups.Add(item);
+                Context.SaveChanges();
+            }
+
+        }
+
+        public static void AddItemGroupByGroupName(ref ItemGroup item)
+        {
+            if (item == null) return;
+            var itemloc = item;
+            lock (Context)
+            {
+                var groupBase = Context.Groups.FirstOrDefault(x => x.Name == itemloc.Group.Name);
+                if (groupBase == null)
+                {
+                    groupBase = new Group() { Id = Guid.NewGuid(), Name = itemloc.Group.Name };
+                    Context.Groups.Add(groupBase);
+                }
+                var itemBase = Context.ItemGroups.FirstOrDefault(x => x.ItemId == itemloc.ItemId
+                                                                   && x.GroupId == groupBase.Id);
+                if (itemBase != null) return;
+                Context.ItemGroups.Add(item);
+                Context.SaveChanges();
             }
         }
     }

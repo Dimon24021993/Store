@@ -15,6 +15,7 @@ namespace Store.Domain.Entities
         public string ShortDescription { get; set; }
         public int Sort { get; set; }
         public GroupType GroupType { get; set; }
+        public virtual List<ItemGroup> ItemGroups { get; set; } = new List<ItemGroup>();
         public virtual List<Group> Children { get; set; } = new List<Group>();
         public virtual List<Picture> Pictures { get; set; } = new List<Picture>();
         public virtual List<Criteria> Criterias { get; set; } = new List<Criteria>();

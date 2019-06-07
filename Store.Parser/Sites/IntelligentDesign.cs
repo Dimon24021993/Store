@@ -1,5 +1,6 @@
 ﻿using AngleSharp.Dom;
 using Microsoft.EntityFrameworkCore.Internal;
+using Newtonsoft.Json;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using Store.Domain.Entities;
@@ -7,9 +8,11 @@ using Store.Domain.Enums;
 using Store.Parser.Extensions;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Group = Store.Domain.Entities.Group;
 
@@ -19,6 +22,9 @@ namespace Store.Parser.Sites
     {
 
         public static int Items = 0;
+
+        private static List<(Group group, string itemHref)> items { get; set; } = new List<(Group group, string itemHref)>();
+
         public static void ParseIntelligentDesign()
         {
             var path = Environment.GetEnvironmentVariable("PATH");
@@ -29,16 +35,37 @@ namespace Store.Parser.Sites
 
             var groups = client.GetDocument("").QuerySelectorAll(".nm-main-menu li li a");
             var groupType = GroupType.ByType;
-            Parallel.ForEach(groups, new ParallelOptions() { MaxDegreeOfParallelism = 4 },
-           element =>
+            var options = new ParallelOptions() { MaxDegreeOfParallelism = 8 };
+            var groupsParallel = Parallel.ForEach(groups, options, element =>
             {
-                if (string.IsNullOrWhiteSpace(element.GetAttribute("href")))
-                {
-                    groupType = GroupType.ByStyle;
-                }
-
+                if (string.IsNullOrWhiteSpace(element.GetAttribute("href"))) groupType = GroupType.ByStyle;
                 ParseGroup(client.BaseAddress, element, groupType, groups.IndexOf(element));
             });
+
+            while (!groupsParallel.IsCompleted)
+            {
+                Thread.Sleep(1000);
+            }
+
+            //items = JsonConvert.DeserializeObject("");
+            var itemsParallel = Parallel.ForEach(items, options, (item, state, index) => ParseItems(client.BaseAddress, item.group, item.itemHref, index));
+            try
+            {
+                var a = Newtonsoft.Json.JsonConvert.SerializeObject(items, new JsonSerializerSettings() { ReferenceLoopHandling = ReferenceLoopHandling.Ignore });
+                File.AppendAllText("items.json", a);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            while (!itemsParallel.IsCompleted)
+            {
+                Thread.Sleep(1000);
+            }
+
+            Console.WriteLine("All done");
+
+
             //foreach (var element in groups)
             //{
             //    if (string.IsNullOrWhiteSpace(element.GetAttribute("href")))
@@ -84,11 +111,10 @@ namespace Store.Parser.Sites
 
                 };
 
+                #endregion
                 //-------------------------------group
                 DataBase.DbTasks.AddGroup(ref group);
                 //-------------------------------
-
-                #endregion
 
                 #region GroupPicture
 
@@ -108,13 +134,13 @@ namespace Store.Parser.Sites
                             SourceType = SourceType.Parser,
                             Type = PictureType.BackGround
                         };
+                        #endregion
                         //-------------------------------image
-                        DataBase.DbTasks.AddPicture(ref groupImage);
+                        //   DataBase.DbTasks.AddPicture(ref groupImage);
                         //-------------------------------
                     }
                 }
 
-                #endregion
 
                 #region Criterias
 
@@ -133,9 +159,13 @@ namespace Store.Parser.Sites
                         Sort = i + 1
                     }));
 
+                    #endregion
+
                     //-------------------------------criterias
-                    DataBase.DbTasks.AddCriterias(ref criterias2Base);
+                    // DataBase.DbTasks.AddCriterias(ref criterias2Base);
                     //-------------------------------
+
+                    #region CriteriaItem
                     for (var i = 0; i < criteriasGroups.Length; i++)
                     {
                         var criterias = criteriasGroups[i].QuerySelectorAll("a");
@@ -147,60 +177,195 @@ namespace Store.Parser.Sites
                                 Value = x.TextContent
                             }));
                     }
+
+                    #endregion
                     //-------------------------------criteriasItems
-                    DataBase.DbTasks.AddCriteriasItems(ref criteriasItems2Base);
+                    //  DataBase.DbTasks.AddCriteriasItems(ref criteriasItems2Base);
                     //-------------------------------
                 }
 
+                var doc = Program.Parser.ParseDocument(chrome.PageSource);
 
+                var trycount = 0;
+                while (doc.QuerySelector(".all-products-loaded .nm-infload-to-top") == null)
+                {
+                    var load = doc.QuerySelector(".nm-infload-btn");
+                    if (load != null)
+                    {
+                        Thread.Sleep(2000);
+                        try
+                        {
+                            chrome.FindElement(By.CssSelector(".nm-infload-btn")).Click();
+                        }
+                        catch (Exception e)
+                        {
+                            if (trycount > 5)
+                            {
+                                doc = Program.Parser.ParseDocument(chrome.PageSource);
+                                break;
+                            }
+                            trycount++;
+                            Thread.Sleep(2000);
+                            continue;
+                        }
+                        Thread.Sleep(2000);
+                        doc = Program.Parser.ParseDocument(chrome.PageSource);
+                    }
+                    else break;
+                }
 
-                #endregion
-
-                //items = chrome.FindElements(By.CssSelector(""));
-                //foreach (var item in items)
-                //{
-                //    ParseItems(ref client, item, group);
-                //}
+                var itemHrefs = chrome.FindElements(By.CssSelector(".product h3 a")).Select(x => x.GetAttribute("href")).ToList();
+                if (itemHrefs.Any())
+                    items.AddRange(itemHrefs.Select(x => (group, x)));
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Console.WriteLine(e.Message);
+                Console.WriteLine(e.StackTrace);
                 //ignore
             }
             finally
             {
                 chrome.Quit();
                 chrome.Dispose();
-
             }
-
-
         }
 
-        private static void ParseItems(ref HttpClient client, object item, Group @group)
+        private static void ParseItems(Uri baseAddress, Group @group, string itemHref, long index)
         {
-            throw new NotImplementedException();
-        }
+            if (string.IsNullOrWhiteSpace(itemHref)) return;
 
+            itemHref = itemHref.StartsWith("http") ? itemHref : baseAddress + itemHref;
 
-        private static void ParseIntelligentDesign(ref HttpClient client, string href)
-        {
+            var client = new HttpClient() { BaseAddress = baseAddress };
+            var document = client.GetDocument(itemHref);
+
             try
             {
-                var document = client.GetDocument(href);
-                var name = document.QuerySelector("h1").TextContent;
-                var results = document
-                    .QuerySelectorAll("ul.movie_credentials li")
-                    .ToDictionary(elem => elem.FirstElementChild.TextContent);
+                //chrome.Url = itemHref;
 
+                #region Item
+
+                var summ = document.QuerySelector(".summary .woocommerce-Price-amount.amount")?.TextContent ?? "0";
+                var cost = Convert.ToDecimal(Regex.Replace(summ, @"[\D ]+", ""));
+
+                var item = new Item()
+                {
+                    ItemNo = document.QuerySelector("#nm-product-meta span.sku")?.TextContent ?? "",
+                    Name = document.QuerySelector("h1")?.TextContent ?? "",
+                    Description = document.QuerySelector(".nm-tabs-panel-inner.entry-content")?.TextContent ?? "",
+                    ShortDescription = document.QuerySelector(".woocommerce-product-details__short-description.entry-content")?.TextContent ?? "",
+                    Id = Guid.NewGuid(),
+                    Active = false,
+                    Cost = cost,
+                    Sort = Convert.ToInt32(index)
+                };
+
+                #endregion
+                //-------------------------------Item
+                DataBase.DbTasks.AddItem(ref item);
+                //-------------------------------
+
+                #region ItemGroups
+
+                var ig = new ItemGroup()
+                {
+                    Id = Guid.NewGuid(),
+                    GroupId = group.Id,
+                    ItemId = item.Id
+                };
+
+                #endregion
+                //-------------------------------Item
+                DataBase.DbTasks.AddItemGroup(ref ig);
+                //-------------------------------
+
+                #region ItemPictures
+
+                var pictures = document.QuerySelectorAll(".woocommerce-product-gallery__image a").Select((x, i) =>
+                {
+                    var href = x.GetAttribute("href");
+                    return new Picture()
+                    {
+                        Href = href,
+                        Name = href.Split('/').Last(),
+                        ItemId = item.Id,
+                        Id = Guid.NewGuid(),
+                        Sort = i,
+                        SourceType = SourceType.Parser,
+                        Type = PictureType.Preview
+
+                    };
+                }).ToArray();
+
+                for (var i = 0; i < pictures.Count(); i++)
+                {
+
+                    #endregion
+                    //-------------------------------image
+                    DataBase.DbTasks.AddPicture(ref pictures[i]);
+                    //-------------------------------
+                }
+
+                #region Criterias
+
+                var criteriasWithItems = document.QuerySelectorAll(".nm-tabs-panel-inner .nm-additional-information-inner tr");
+                var criterias2Base = criteriasWithItems.Select((x, i) => new Criteria()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = x.Children[0].TextContent,
+                    Sort = i
+                }).ToList();
+
+                #endregion
+                //-------------------------------criterias
+                DataBase.DbTasks.AddCriterias(ref criterias2Base);
+                //-------------------------------
+
+                #region CriteriaItem
+
+                var criteriasItems2Base = criteriasWithItems.Select((x, i) => new CriteriaItem()
+                {
+                    Id = Guid.NewGuid(),
+                    Value = x.Children[1].TextContent,
+                    CriteriaId = criterias2Base[i].Id,
+                    ItemId = item.Id
+                }).ToList();
+
+
+
+                #endregion
+                //-------------------------------criteriasItems
+                DataBase.DbTasks.AddCriteriasItems(ref criteriasItems2Base);
+                //-------------------------------
+                #region ItemGroups
+
+                var categoryWithItems = document.QuerySelector(".posted_in").TextContent;
+
+                var igs = categoryWithItems.Split(':').Last().Split(',').Select(x => new ItemGroup()
+                {
+                    Id = Guid.NewGuid(),
+                    ItemId = item.Id,
+                    Group = new Group()
+                    {
+                        Name = x.Trim()
+                    }
+                }).ToArray();
+
+                for (int i = 0; i < igs.Length; i++)
+                {
+                    #endregion
+                    //-------------------------------ItemGroups
+                    DataBase.DbTasks.AddItemGroupByGroupName(ref igs[i]);
+                    //-------------------------------
+                }
 
             }
             catch (Exception e)
             {
-                // ignored
+                Console.WriteLine(e.Message);
+                Console.WriteLine(e.StackTrace);
             }
         }
-
-
     }
 }

@@ -15,6 +15,7 @@ namespace Store.DAL
         public DbSet<CriteriaItem> CriteriaItems { get; set; }
         public DbSet<Group> Groups { get; set; }
         public DbSet<Item> Items { get; set; }
+        public DbSet<ItemGroup> ItemGroups { get; set; }
         public DbSet<Picture> Pictures { get; set; }
         public DbSet<Rate> Rates { get; set; }
         public DbSet<Role> Roles { get; set; }
@@ -29,8 +30,8 @@ namespace Store.DAL
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Rate>().Property(x => x.Value).HasColumnType("decimal(12,10)");
-            modelBuilder.Entity<Item>().Property(x => x.Cost).HasColumnType("decimal(12,10)");
-            modelBuilder.Entity<Article>().Property(x => x.Cost).HasColumnType("decimal(12,10)");
+            modelBuilder.Entity<Item>().Property(x => x.Cost).HasColumnType("decimal(12,2)");
+            modelBuilder.Entity<Article>().Property(x => x.Cost).HasColumnType("decimal(12,2)");
             //modelBuilder.Entity<Role>().HasKey(x => new { x.UserId, x.RoleName });
         }
     }

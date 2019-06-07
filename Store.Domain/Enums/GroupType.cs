@@ -4,6 +4,7 @@ namespace Store.Domain.Enums
     public enum GroupType
     {
         ByType,
-        ByStyle
+        ByStyle,
+        Category
     }
 }

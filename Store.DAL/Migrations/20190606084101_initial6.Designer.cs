@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Store.DAL;
 
 namespace Store.DAL.Migrations
 {
     [DbContext(typeof(DataBaseContext))]
-    partial class DataBaseContextModelSnapshot : ModelSnapshot
+    [Migration("20190606084101_initial6")]
+    partial class initial6
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -126,6 +128,8 @@ namespace Store.DAL.Migrations
 
                     b.Property<string>("Description");
 
+                    b.Property<Guid?>("GroupId");
+
                     b.Property<string>("ItemNo");
 
                     b.Property<string>("Name");
@@ -136,25 +140,9 @@ namespace Store.DAL.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Items");
-                });
-
-            modelBuilder.Entity("Store.Domain.Entities.ItemGroup", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd();
-
-                    b.Property<Guid?>("GroupId");
-
-                    b.Property<Guid?>("ItemId");
-
-                    b.HasKey("Id");
-
                     b.HasIndex("GroupId");
 
-                    b.HasIndex("ItemId");
-
-                    b.ToTable("ItemGroups");
+                    b.ToTable("Items");
                 });
 
             modelBuilder.Entity("Store.Domain.Entities.Picture", b =>
@@ -295,15 +283,11 @@ namespace Store.DAL.Migrations
                         .HasForeignKey("ParentId");
                 });
 
-            modelBuilder.Entity("Store.Domain.Entities.ItemGroup", b =>
+            modelBuilder.Entity("Store.Domain.Entities.Item", b =>
                 {
                     b.HasOne("Store.Domain.Entities.Group", "Group")
-                        .WithMany("ItemGroups")
+                        .WithMany()
                         .HasForeignKey("GroupId");
-
-                    b.HasOne("Store.Domain.Entities.Item", "Item")
-                        .WithMany("ItemGroups")
-                        .HasForeignKey("ItemId");
                 });
 
             modelBuilder.Entity("Store.Domain.Entities.Picture", b =>
