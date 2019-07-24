@@ -14,7 +14,7 @@ namespace Store.Domain.Entities
         public bool Active { get; set; }
         public int Sort { get; set; }
         public virtual List<ItemGroup> ItemGroups { get; set; } = new List<ItemGroup>();
-        public virtual List<Rate> Rated { get; set; } = new List<Rate>();
+        public virtual List<Rate> Rates { get; set; } = new List<Rate>();
         public virtual List<Picture> Pictures { get; set; } = new List<Picture>();
     }
 }

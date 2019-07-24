@@ -10,6 +10,8 @@ using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using NLog.Extensions.Logging;
 using Store.API.Config;
+using Store.BLL.Interfaces;
+using Store.BLL.Services;
 using Store.DAL;
 
 namespace Store.API
@@ -54,6 +56,9 @@ namespace Store.API
 
             services.AddDbContext<DataBaseContext>(options => options.UseSqlServer(Configuration.GetConnectionString("DataBase")));
 
+            services.AddTransient<IUserService, UserService>();
+            services.AddTransient<IItemsService, ItemsService>();
+            
             services.Configure<IISOptions>(options =>
             {
                 options.ForwardClientCertificate = false;
